@@ -340,4 +340,194 @@ No changes to conftest, no changes to existing tests.
 
 ---
 
+## Interview Theory — No Code, Pure Knowledge
+
+> These topics don't have dedicated days in the repo, but they come up
+> frequently in senior SDET and Quality Architect interviews.
+
+### The Test Pyramid
+A model for balancing test types by speed, cost, and confidence:
+
+```
+        /  E2E  \          ← Few: slow, expensive, high confidence
+       /  Integ. \         ← Some: moderate speed, test component interaction
+      /   Unit    \        ← Many: fast, cheap, test logic in isolation
+```
+
+| Level | Speed | Cost | Scope | Example |
+|-------|-------|------|-------|---------|
+| **Unit** | Milliseconds | Cheapest | Single function/class | Test that `calculate_tax(100)` returns `18` |
+| **Integration** | Seconds | Moderate | Multiple components | Test that API endpoint writes to database correctly |
+| **E2E** | Seconds-minutes | Most expensive | Full user flow | Test login → add to cart → checkout via browser |
+
+**Anti-pattern:** The "ice cream cone" — mostly E2E tests, few unit tests.
+Slow pipelines, flaky results, hard to debug failures.
+
+**Interview answer:**
+> "I follow the test pyramid — heavy unit coverage for fast feedback, integration
+> tests for component boundaries like API-to-database, and selective E2E tests
+> for critical user journeys. This keeps the pipeline fast while maintaining
+> confidence. I avoid the ice cream cone anti-pattern where everything is tested
+> through the UI."
+
+### Test Strategy — What to Automate vs What Not To
+Not everything should be automated. The decision framework:
+
+**Automate when:**
+- The test runs frequently (regression, smoke)
+- It's repetitive and stable (login, checkout)
+- It involves data-intensive validation (1000 records)
+- It needs to run across multiple environments/browsers
+
+**Keep manual when:**
+- Exploratory testing (finding unknown bugs)
+- UX/visual judgment calls ("does this look right?")
+- One-time tests or rapidly changing features
+- Accessibility nuances that need human judgment
+
+**Risk-based testing:**
+Prioritize test coverage based on:
+1. **Business impact** — what breaks if this fails? (payment > color change)
+2. **Frequency of use** — high-traffic flows first
+3. **Likelihood of failure** — recently changed code, complex logic
+4. **Regulatory requirements** — compliance features are non-negotiable
+
+**Interview answer:**
+> "I use risk-based testing to prioritize automation. High-business-impact,
+> high-frequency flows get automated first — like login, payments, and core
+> workflows. Exploratory and UX testing stays manual. For each feature, I
+> evaluate business risk, change frequency, and complexity to decide the right
+> mix of automated vs manual coverage."
+
+### OWASP Top 10 — Security Basics for QA
+The 10 most critical web application security risks. You don't need to be a
+security expert, but you should know what these are and how to test for them.
+
+1. **Broken Access Control** — users can access pages/data they shouldn't.
+   *Test:* Try accessing admin URLs as a regular user.
+
+2. **Cryptographic Failures** — sensitive data (passwords, tokens) stored or
+   transmitted without encryption.
+   *Test:* Check that passwords aren't in plain text, APIs use HTTPS.
+
+3. **Injection (SQL/XSS)** — user input is executed as code.
+   *Test:* Enter `<script>alert('xss')</script>` in form fields.
+   Enter `' OR 1=1 --` in login fields.
+
+4. **Insecure Design** — flawed architecture, not just bugs.
+   *Test:* Can a user bypass checkout steps? Can they manipulate prices client-side?
+
+5. **Security Misconfiguration** — default credentials, unnecessary features enabled.
+   *Test:* Check for exposed debug endpoints, default admin passwords.
+
+6. **Vulnerable Components** — outdated libraries with known CVEs.
+   *Test:* Run `pip audit` or `npm audit` on the project.
+
+7. **Authentication Failures** — weak passwords, no rate limiting.
+   *Test:* Try brute-forcing login, check if session tokens rotate after login.
+
+8. **Data Integrity Failures** — untrusted data in CI/CD pipelines or updates.
+   *Test:* Verify code is signed, dependencies are pinned.
+
+9. **Logging & Monitoring Gaps** — breaches go undetected.
+   *Test:* Trigger a failed login — is it logged? Are alerts configured?
+
+10. **Server-Side Request Forgery (SSRF)** — server makes requests to
+    unintended internal resources.
+    *Test:* Submit internal URLs (localhost, 127.0.0.1) in URL input fields.
+
+**Interview answer:**
+> "I'm familiar with the OWASP Top 10. In my test suites, I include basic
+> security checks — testing for XSS by injecting script tags, verifying access
+> control by trying unauthorized endpoints, and checking that sensitive data
+> like tokens aren't exposed in API responses or logs."
+
+### Docker Basics for SDETs
+Docker packages your application (or test suite) into a container — a
+lightweight, isolated environment that runs the same everywhere.
+
+**Key concepts:**
+- **Image** — a blueprint (like a class). Built from a `Dockerfile`.
+- **Container** — a running instance of an image (like an object).
+- **Dockerfile** — instructions to build an image:
+  ```dockerfile
+  FROM python:3.10-slim
+  WORKDIR /app
+  COPY requirements.txt .
+  RUN pip install -r requirements.txt
+  RUN playwright install chromium --with-deps
+  COPY . .
+  CMD ["pytest", "-v"]
+  ```
+- **docker-compose** — runs multiple containers together (e.g., test suite + database).
+
+**Why SDETs need Docker:**
+- **Consistent CI/CD** — tests run in the same environment locally and in pipelines
+- **Dependency isolation** — no "works on my machine" issues
+- **Parallel execution** — spin up multiple containers for parallel test runs
+- **Clean state** — every container starts fresh, no leftover state
+
+**Interview answer:**
+> "I containerize my test suites with Docker to ensure consistent execution
+> across local, CI, and staging environments. The Dockerfile installs all
+> dependencies including browser binaries, so tests run identically everywhere.
+> In CI/CD, each pipeline run spins up a fresh container — no state leaks
+> between runs."
+
+### SQL for Testers
+Common queries that come up in SDET interviews. You should be comfortable
+reading and writing these.
+
+**Basic queries:**
+```sql
+-- Select with filtering
+SELECT * FROM users WHERE status = 'active' AND created_at > '2025-01-01';
+
+-- Aggregate functions
+SELECT COUNT(*), AVG(price) FROM orders WHERE status = 'completed';
+
+-- Group by with having
+SELECT user_id, COUNT(*) as order_count
+FROM orders
+GROUP BY user_id
+HAVING COUNT(*) > 5;
+```
+
+**Joins:**
+```sql
+-- Inner join — only matching rows
+SELECT u.name, o.total
+FROM users u
+INNER JOIN orders o ON u.id = o.user_id;
+
+-- Left join — all users, even those with no orders
+SELECT u.name, COALESCE(o.total, 0) as total
+FROM users u
+LEFT JOIN orders o ON u.id = o.user_id;
+```
+
+**Subqueries:**
+```sql
+-- Find users who placed orders above average
+SELECT name FROM users
+WHERE id IN (
+    SELECT user_id FROM orders
+    WHERE total > (SELECT AVG(total) FROM orders)
+);
+```
+
+**Why SDETs need SQL:**
+- Verify data persistence after API calls
+- Set up test data directly in the database
+- Assert backend state that's not visible in the UI
+- Debug test failures by checking what data actually exists
+
+**Interview answer:**
+> "I use SQL to verify backend state in integration tests — confirming that
+> API calls actually persist the right data, checking test preconditions, and
+> debugging failures by querying the database directly. I'm comfortable with
+> joins, aggregations, subqueries, and data manipulation."
+
+---
+
 *More sections will be added as new days are completed.*
