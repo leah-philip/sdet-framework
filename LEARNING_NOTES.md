@@ -243,4 +243,101 @@ in your fixture ignore what you pass on the command line.
 
 ---
 
+## Day 3: Custom Pytest Fixtures & Auto-Injection
+
+### What are custom page object fixtures?
+Instead of manually creating page objects in every test:
+```python
+def test_something(self, page: Page) -> None:
+    login_page = LoginPage(page)  # repeated everywhere
+```
+
+You define a fixture that does it for you:
+```python
+@pytest.fixture()
+def login_page(page: Page) -> LoginPage:
+    return LoginPage(page)
+```
+
+Tests just declare the fixture as a parameter:
+```python
+def test_something(self, login_page: LoginPage) -> None:
+    login_page.open()  # already instantiated
+```
+
+**Why it matters:**
+- **DRY** — instantiation logic lives in one place
+- **Consistency** — every test gets page objects set up the same way
+- **Scalability** — adding a new page object = one fixture, zero test changes
+- **Readability** — test signatures tell you exactly what pages are involved
+
+**Interview answer:**
+> "I use custom fixtures to auto-inject page objects into tests. This eliminates
+> boilerplate, ensures consistent setup, and makes tests self-documenting — you
+> can see from the function signature which pages a test interacts with."
+
+### How do you organize fixtures across files?
+Fixtures live in a dedicated `fixtures/` module (e.g., `fixtures/page_fixtures.py`).
+They're registered in `conftest.py` via wildcard import:
+
+```python
+from fixtures.page_fixtures import *  # noqa: F401, F403
+```
+
+**Why this pattern:**
+- Keeps `conftest.py` clean — it handles infrastructure (browser, auth), not page objects
+- `fixtures/page_fixtures.py` is focused on page object creation
+- Wildcard import means adding a new fixture requires zero changes to conftest
+- `# noqa` tells linters to allow the wildcard import — this is a valid use case
+
+**Interview answer:**
+> "I separate fixtures into modules by concern — page fixtures in one file,
+> API fixtures in another. They're imported into conftest.py via wildcard so
+> Pytest can discover them. This keeps conftest focused on infrastructure and
+> makes fixture files easy to navigate as the suite grows."
+
+### Fixture dependency chains — how do they compose?
+Fixtures can depend on other fixtures, forming automatic chains:
+
+```
+test asks for inventory_page
+  → inventory_page fixture asks for page
+  → page fixture (conftest) asks for auth_context
+  → auth_context asks for browser_instance + authenticated_state
+  → all resolved automatically by Pytest
+```
+
+The `inventory_page` fixture doesn't know or care about authentication. It
+just receives a `page` and wraps it. The auth layer is handled by a completely
+different fixture in a different file.
+
+This is **composition over configuration** — each fixture does one thing, and
+they snap together like building blocks.
+
+### When should a fixture auto-navigate vs not?
+- **Auto-navigate** (like `inventory_page`) when every test using it starts at
+  the same URL. Eliminates repetitive `.open()` calls.
+- **Don't auto-navigate** (like `login_page`) when tests need control over the
+  starting point — e.g., testing what happens before navigation, or testing
+  different entry paths.
+
+### What is `Generator[X, None, None]` in fixture type hints?
+The type hint for a `yield`-based fixture:
+- 1st value (`X`) — what the fixture yields to the test
+- 2nd value (`None`) — nothing is sent back into the generator
+- 3rd value (`None`) — nothing is returned when done
+
+When there's no teardown (no code after `yield`), you can use `return` instead
+and simplify the type hint to just `-> X`.
+
+### Adding a new page object — the checklist
+When you need a new page (e.g., `CartPage`):
+1. Create `pages/cart_page.py` extending `BasePage`
+2. Add a `cart_page` fixture to `fixtures/page_fixtures.py`
+3. Done — conftest's `import *` picks it up automatically
+
+No changes to conftest, no changes to existing tests.
+
+---
+
 *More sections will be added as new days are completed.*

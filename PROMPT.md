@@ -14,7 +14,7 @@ Building it day-by-day as a learning exercise — I write the code myself from i
 ## Current Project Structure
 ```
 QA_Level_Up/
-├── conftest.py              # Global fixtures: browser_instance, authenticated_state, auth_context, page
+├── conftest.py              # Global fixtures + imports page_fixtures via wildcard import
 ├── pytest.ini               # testpaths=tests, -v --tb=short
 ├── requirements.txt         # pytest>=8.0, pytest-playwright>=0.5.0
 ├── .gitignore               # venv/, __pycache__/, *.pyc, data/storage_state.json
@@ -23,13 +23,15 @@ QA_Level_Up/
 ├── pages/
 │   ├── __init__.py
 │   ├── base_page.py         # BasePage: common actions (navigate, click, fill, get_text, is_visible)
-│   └── login_page.py        # LoginPage: SauceDemo login (inherits BasePage)
+│   ├── login_page.py        # LoginPage: SauceDemo login (inherits BasePage)
+│   └── inventory_page.py    # InventoryPage: inventory actions (add/remove cart, sort, item count)
 ├── tests/
 │   ├── __init__.py
 │   ├── test_login.py        # 3 login tests + local page fixture override (unauthenticated)
-│   └── test_inventory.py    # 3 inventory tests using global auth (no login needed)
+│   └── test_inventory.py    # 5 inventory tests using auto-injected inventory_page fixture
 ├── fixtures/
-│   └── __init__.py
+│   ├── __init__.py
+│   └── page_fixtures.py     # Custom fixtures: login_page, inventory_page (auto-inject POM)
 ├── utils/
 │   └── __init__.py
 └── data/
@@ -54,6 +56,14 @@ QA_Level_Up/
 - Added test_inventory.py with 3 tests that skip login entirely
 - Connected --headed CLI flag to custom browser_instance fixture via pytestconfig
 
+### Day 3 — Custom Pytest Fixtures ✅
+- Created InventoryPage (pages/inventory_page.py) with cart, sort, and item count methods
+- Created fixtures/page_fixtures.py with login_page and inventory_page fixtures
+- Registered fixtures in conftest.py via `from fixtures.page_fixtures import *`
+- Refactored test_login.py and test_inventory.py to use auto-injected page objects
+- Tests no longer manually instantiate page objects — fixtures handle it
+- Added 2 new cart tests (add/remove) in test_inventory.py (now 5 inventory tests)
+
 ## Coding Standards Being Followed
 - Type hints on all functions and classes
 - Page Object Model (POM) with inheritance
@@ -66,7 +76,7 @@ QA_Level_Up/
 ### Week 1: Advanced Framework Architecture
 - Day 1: Project Scaffold + Base POM ✅
 - Day 2: Global Authentication ✅
-- Day 3: Custom Pytest Fixtures (auto-inject Page Objects, no manual instantiation)
+- Day 3: Custom Pytest Fixtures ✅
 - Day 4: Network Interception & Mocking (page.route on cars site, mock bad data)
 - Day 5: Logging + Config + Polish (structured logging, centralized config, type hints audit)
 
@@ -91,7 +101,7 @@ QA_Level_Up/
 - Day 15: README, Reporting & Final Polish
 
 ## What To Do Next
-Start Day 3: Custom Pytest Fixtures. Give me step-by-step instructions to:
-1. Create custom fixtures that auto-inject Page Objects (LoginPage, InventoryPage, etc.)
-2. Remove manual Page Object instantiation from tests
-3. Use the fixtures/ directory for organized fixture modules
+Start Day 4: Network Interception & Mocking. Give me step-by-step instructions to:
+1. Use Playwright's page.route() to intercept API responses on https://practice.expandtesting.com/cars
+2. Mock a "0" or negative price to test UI error handling/resilience
+3. Assert how the UI behaves with manipulated API data

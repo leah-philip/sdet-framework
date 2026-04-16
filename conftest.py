@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Generator
-
+from fixtures.page_fixtures import *  # noqa: F401, F403
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Page, Playwright, sync_playwright
 
