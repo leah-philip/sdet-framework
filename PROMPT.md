@@ -24,14 +24,16 @@ QA_Level_Up/
 │   ├── __init__.py
 │   ├── base_page.py         # BasePage: common actions (navigate, click, fill, get_text, is_visible)
 │   ├── login_page.py        # LoginPage: SauceDemo login (inherits BasePage)
-│   └── inventory_page.py    # InventoryPage: inventory actions (add/remove cart, sort, item count)
+│   ├── inventory_page.py    # InventoryPage: inventory actions (add/remove cart, sort, item count)
+│   └── car_page.py          # CarPage: cars showroom (expandtesting.com/cars)
 ├── tests/
 │   ├── __init__.py
 │   ├── test_login.py        # 3 login tests + local page fixture override (unauthenticated)
-│   └── test_inventory.py    # 5 inventory tests using auto-injected inventory_page fixture
+│   ├── test_inventory.py    # 5 inventory tests using auto-injected inventory_page fixture
+│   └── test_cars_network.py # 6 network interception tests (mock, spy, error handling)
 ├── fixtures/
 │   ├── __init__.py
-│   └── page_fixtures.py     # Custom fixtures: login_page, inventory_page (auto-inject POM)
+│   └── page_fixtures.py     # Custom fixtures: login_page, inventory_page, car_page
 ├── utils/
 │   └── __init__.py
 └── data/
@@ -64,6 +66,17 @@ QA_Level_Up/
 - Tests no longer manually instantiate page objects — fixtures handle it
 - Added 2 new cart tests (add/remove) in test_inventory.py (now 5 inventory tests)
 
+### Day 4 — Network Interception & Mocking ✅
+- Created CarPage (pages/car_page.py) for https://practice.expandtesting.com/cars
+- Added car_page fixture to fixtures/page_fixtures.py
+- Built 6 network interception tests in test_cars_network.py:
+  - Baseline real data load, empty list mock, zero price, negative price, 500 error, request spy
+- Used page.route() with fulfill(), continue_(), and abort() patterns
+- Mocked API responses matching real structure: {"status": "success", "cars": [...]}
+- Discovered UI has no error handling — fails silently on bad data (real finding)
+- Local unauthenticated page fixture override for cars tests (not SauceDemo)
+- Learned: always inspect actual API response before writing mocks
+
 ## Coding Standards Being Followed
 - Type hints on all functions and classes
 - Page Object Model (POM) with inheritance
@@ -77,7 +90,7 @@ QA_Level_Up/
 - Day 1: Project Scaffold + Base POM ✅
 - Day 2: Global Authentication ✅
 - Day 3: Custom Pytest Fixtures ✅
-- Day 4: Network Interception & Mocking (page.route on cars site, mock bad data)
+- Day 4: Network Interception & Mocking ✅
 - Day 5: Logging + Config + Polish (structured logging, centralized config, type hints audit)
 
 ### Week 2: API Testing
@@ -101,7 +114,7 @@ QA_Level_Up/
 - Day 15: README, Reporting & Final Polish
 
 ## What To Do Next
-Start Day 4: Network Interception & Mocking. Give me step-by-step instructions to:
-1. Use Playwright's page.route() to intercept API responses on https://practice.expandtesting.com/cars
-2. Mock a "0" or negative price to test UI error handling/resilience
-3. Assert how the UI behaves with manipulated API data
+Start Day 5: Logging + Config + Polish. Give me step-by-step instructions to:
+1. Add structured logging with Python's logging module (utils/logger.py)
+2. Create centralized config (utils/config.py) for URLs, credentials, timeouts
+3. Audit type hints across all files and refactor any inconsistencies

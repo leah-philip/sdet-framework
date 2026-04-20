@@ -530,4 +530,110 @@ WHERE id IN (
 
 ---
 
+## Day 4: Network Interception & API Mocking
+
+### What is network interception?
+Playwright's `page.route()` lets you intercept HTTP requests at the browser
+network level. You sit between the browser and the server and control what
+happens to each request.
+
+```python
+page.route("**/api/cars", lambda route: route.fulfill(
+    status=200,
+    content_type="application/json",
+    body='{"status": "success", "cars": []}',
+))
+```
+
+The browser's JavaScript runs for real — it fires a real HTTP request — but
+Playwright catches it before it leaves and hands it to your handler.
+
+### The three route actions
+Every route handler MUST end with exactly one of:
+
+| Method | What it does | Use case |
+|--------|-------------|----------|
+| `route.fulfill()` | Return a fake response you control | Mocking data, error states |
+| `route.continue_()` | Let the real request go through | Spying/logging requests |
+| `route.abort()` | Kill the request entirely | Testing offline/network failure |
+
+If you don't call any of these, the request **hangs forever** and your test
+times out.
+
+Note: `continue_()` has an underscore because `continue` is a Python keyword.
+
+### Why register routes BEFORE navigation
+`page.route()` is like hiring a security guard. `page.goto()` is opening the
+gate. If you open the gate first, requests pass through before the guard is
+in position. Always register routes before navigating.
+
+### What is a callback / lambda in this context?
+`page.route()` takes a function as its second argument. Playwright calls this
+function whenever a matching request is intercepted, passing in a `Route`
+object. You define **what to do**; Playwright decides **when to do it**.
+
+```python
+# Lambda (one-liner):
+page.route(pattern, lambda route: route.fulfill(status=200, body="..."))
+
+# Named function (multi-line):
+def handler(route: Route) -> None:
+    captured.append(route.request.url)
+    route.continue_()
+page.route(pattern, handler)
+```
+
+Lambda is a shortcut for a one-line anonymous function. Use a named function
+when you need multiple lines.
+
+### Mock data must match real API structure
+The #1 reason network mocking fails silently: your mock doesn't match the
+real response format. Always inspect the actual API response (DevTools →
+Network → click the request → Response tab) before writing mocks.
+
+**Real API returns:**
+```json
+{"status": "success", "cars": [{"id": 1, "name": "...", "price": "€25,000"}]}
+```
+
+**Wrong mock:** `[]` — frontend expects an object with `status` and `cars` keys.
+**Correct mock:** `{"status": "success", "cars": []}` — matches the structure.
+
+### Network mocking vs unittest.mock
+| | `unittest.mock` | `page.route()` |
+|---|---|---|
+| Where it works | Python code | Browser network layer |
+| Browser involved | No | Yes |
+| Frontend JS runs | No | Yes |
+| Tests UI rendering | No | Yes |
+
+Network mocking is more realistic — the entire frontend runs for real.
+
+### When to use network interception in real projects
+- **Error handling** — mock 500/404 to test UI error states
+- **Edge cases** — inject zero prices, empty lists, negative values
+- **Flaky prevention** — mock unstable third-party APIs
+- **Speed** — skip slow API calls with instant mock responses
+- **Unreleased features** — test frontend before backend is built
+- **Security** — inject XSS payloads in API responses
+
+### Wait strategies: networkidle vs alternatives
+`wait_for_load_state("networkidle")` waits for zero network connections for
+500ms. Many sites never reach this state (analytics, polling, websockets).
+
+Better alternatives:
+- `page.locator(selector).first.wait_for()` — wait for a specific element
+- `page.wait_for_load_state("domcontentloaded")` — wait for HTML to parse
+- `page.wait_for_timeout(2000)` — fixed wait (last resort for "no content" assertions)
+
+**Interview answer:**
+> "I use Playwright's page.route() to intercept browser network requests and
+> test UI resilience with mocked data — empty responses, invalid values, server
+> errors. This lets me verify error handling and edge cases that the real API
+> would never return. I always inspect the actual API response first to ensure
+> my mocks match the real structure. I also use route spying with continue_()
+> to verify the frontend sends correct requests without modifying them."
+
+---
+
 *More sections will be added as new days are completed.*
