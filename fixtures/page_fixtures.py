@@ -8,21 +8,20 @@ from pages.inventory_page import InventoryPage
 from pages.car_page import CarPage
 
 
+@pytest.fixture()
+def login_page(page: Page) -> LoginPage:
+    return LoginPage(page)
+
 
 @pytest.fixture()
-def login_page(page: Page) -> Generator[LoginPage, None, None]:
-    yield LoginPage(page)
-
-
-@pytest.fixture()
-def inventory_page(page: Page) -> Generator[InventoryPage, None, None]:
+def inventory_page(page: Page) -> InventoryPage:
     inventory = InventoryPage(page)
     inventory.open()
-    yield inventory
-    
+    return inventory
+
 
 @pytest.fixture()
 def car_page(page: Page) -> CarPage:
     car = CarPage(page)
     car.open()
-    yield car
+    return car

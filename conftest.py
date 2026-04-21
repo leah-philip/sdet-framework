@@ -3,7 +3,7 @@ from typing import Generator
 from fixtures.page_fixtures import *  # noqa: F401, F403
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Page, Playwright, sync_playwright
-
+from utils.config import SAUCE_DEMO
 from pages.login_page import LoginPage
 
 STORAGE_STATE_PATH = Path(__file__).parent / "data" / "storage_state.json"
@@ -25,7 +25,7 @@ def authenticated_state(browser_instance: Browser) -> Path:
 
     login_page = LoginPage(page)
     login_page.open()
-    login_page.login("standard_user", "secret_sauce")
+    login_page.login(SAUCE_DEMO.username, SAUCE_DEMO.password)
     page.wait_for_url("**/inventory.html")
 
     context.storage_state(path=str(STORAGE_STATE_PATH))

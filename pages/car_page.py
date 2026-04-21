@@ -1,10 +1,11 @@
 from pages.base_page import BasePage
+from utils.config import CARS
 
 
 class CarPage(BasePage):
     """Page Object for the Cars Showroom page."""
 
-    URL = "https://practice.expandtesting.com/cars"
+    URL = CARS.base_url
 
     CAR_CARD = '[data-testid^="car-"]'
     CAR_NAME = '[data-testid="car-name"]'

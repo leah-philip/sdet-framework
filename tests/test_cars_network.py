@@ -1,5 +1,5 @@
 import json
-
+from utils.config import CARS
 from playwright.sync_api import Page, Route, BrowserContext
 from typing import Generator
 import pytest
@@ -21,7 +21,7 @@ def page(unauthenticated_context: BrowserContext) -> Generator[Page, None, None]
 class TestCarsNetworkMocking:
     """Tests using network interception to mock API responses."""
 
-    CARS_API_PATTERN = "**/api/cars"
+    CARS_API_PATTERN = CARS.api_url_pattern
 
     def _mock_cars_response(self, route: Route, cars: list[dict], status: str = "success") -> None:
         """Helper to fulfill a route with custom car data."""

@@ -636,4 +636,95 @@ Better alternatives:
 
 ---
 
-*More sections will be added as new days are completed.*
+## Day 5: Structured Logging, Centralized Config & Polish
+
+### Why add logging to a test framework?
+When a test fails in CI/CD, you can't open a browser and watch. Logs tell you
+exactly what happened — which page was loaded, what was clicked, where it broke.
+
+```
+2026-04-07 14:30:15 | INFO     | LoginPage | Logging in as 'standard_user'
+2026-04-07 14:30:16 | DEBUG    | LoginPage | Filling '#user-name' with 'standard_user'
+2026-04-07 14:30:16 | DEBUG    | LoginPage | Clicking '#login-button'
+```
+
+**Interview answer:**
+> "I add structured logging to my page objects so every action is traceable.
+> When a test fails in CI, I can read the logs to see exactly what happened
+> without rerunning locally. I use Python's logging module with lazy %s
+> formatting for performance."
+
+### Python logging levels
+| Level | Value | Use for |
+|-------|-------|---------|
+| `DEBUG` | 10 | Detailed diagnostic (clicking, filling fields) |
+| `INFO` | 20 | Key business actions (logging in, adding to cart) |
+| `WARNING` | 30 | Unexpected but not broken |
+| `ERROR` | 40 | Something failed |
+| `CRITICAL` | 50 | System unusable |
+
+Setting level to `INFO` means you see INFO + WARNING + ERROR + CRITICAL.
+DEBUG messages are hidden. Change to `DEBUG` when troubleshooting.
+
+### Why `%s` formatting instead of f-strings in logging?
+```python
+self.logger.debug("Clicking '%s'", selector)   # lazy — string built only if printed
+self.logger.debug(f"Clicking '{selector}'")     # eager — string ALWAYS built
+```
+
+With `%s`, if the log level is above DEBUG, the string is never constructed.
+With f-strings, Python builds the string regardless, then throws it away.
+Performance difference at scale (thousands of log calls).
+
+### Singleton logger pattern
+`logging.getLogger(name)` returns the same object for the same name. The
+`if not logger.handlers` check prevents adding duplicate handlers when the
+logger is retrieved multiple times. Without it, messages print once per
+handler — three calls = three copies of every message.
+
+### `self.__class__.__name__` for automatic logger naming
+Written in `BasePage.__init__`, but `self.__class__` refers to the **actual**
+child class. So `LoginPage` logs as `"LoginPage"`, `CarPage` logs as `"CarPage"`.
+Each child gets its own named logger without extra code.
+
+### What are frozen dataclasses and why use them for config?
+`@dataclass` auto-generates `__init__` and `__repr__` from field definitions.
+`frozen=True` makes instances immutable — values can't be changed at runtime.
+
+```python
+@dataclass(frozen=True)
+class SauceDemoConfig:
+    base_url: str = "https://www.saucedemo.com"
+    username: str = "standard_user"
+```
+
+**Why frozen?** Prevents accidental mutation. Without it, a bug in one test
+could overwrite `SAUCE_DEMO.username` and silently break every test after it.
+
+**Why dataclass instead of a regular class?** Pure data containers don't need
+manual `__init__` and `__repr__`. Dataclass eliminates that boilerplate.
+
+**Why not dataclass on page objects?** Page objects have behavior (methods),
+inheritance (BasePage), and custom `__init__`. Dataclass conflicts with these.
+Rule: data containers → dataclass. Behavior-driven classes → regular class.
+
+### Why centralize config?
+Hardcoded values scattered across files:
+- One URL typo → hunt through 10 files to find it
+- Change a credential → update every file that uses it
+- Different environments (staging/prod) → rewrite everything
+
+Centralized config:
+- One source of truth in `utils/config.py`
+- Change a URL once → every page object and test picks it up
+- Environment switching → swap one config, everything follows
+
+**Interview answer:**
+> "I use frozen dataclasses for configuration — URLs, credentials, timeouts —
+> in a single config module. They're immutable so tests can't accidentally
+> mutate shared state, type-hinted for IDE support, and centralized so
+> environment changes are a one-line update."
+
+---
+
+*Week 1 complete. More sections will be added as new days are completed.*

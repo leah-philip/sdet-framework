@@ -22,7 +22,7 @@ QA_Level_Up/
 ├── LEARNING_NOTES.md        # Interview-ready concept notes
 ├── pages/
 │   ├── __init__.py
-│   ├── base_page.py         # BasePage: common actions (navigate, click, fill, get_text, is_visible)
+│   ├── base_page.py         # BasePage: common actions + logging (navigate, click, fill, get_text)
 │   ├── login_page.py        # LoginPage: SauceDemo login (inherits BasePage)
 │   ├── inventory_page.py    # InventoryPage: inventory actions (add/remove cart, sort, item count)
 │   └── car_page.py          # CarPage: cars showroom (expandtesting.com/cars)
@@ -35,7 +35,9 @@ QA_Level_Up/
 │   ├── __init__.py
 │   └── page_fixtures.py     # Custom fixtures: login_page, inventory_page, car_page
 ├── utils/
-│   └── __init__.py
+│   ├── __init__.py
+│   ├── logger.py            # get_logger() — structured logging with singleton pattern
+│   └── config.py            # Frozen dataclass configs: SAUCE_DEMO, CARS, TIMEOUTS
 └── data/
     └── storage_state.json   # Auto-generated: saved browser cookies/localStorage after login
 ```
@@ -77,11 +79,21 @@ QA_Level_Up/
 - Local unauthenticated page fixture override for cars tests (not SauceDemo)
 - Learned: always inspect actual API response before writing mocks
 
+### Day 5 — Logging, Config & Week 1 Polish ✅
+- Created utils/logger.py with get_logger() — singleton pattern, StreamHandler to stdout
+- Created utils/config.py with frozen dataclasses: SauceDemoConfig, CarsConfig, TimeoutConfig
+- Added logging to BasePage (all actions log automatically via self.__class__.__name__)
+- Added business-level logs to LoginPage, InventoryPage (login, add/remove cart, sort)
+- Replaced all hardcoded URLs/credentials with config constants (SAUCE_DEMO, CARS)
+- Fixed fixture consistency: all page fixtures use return (no teardown needed)
+- Wired conftest.py credentials to SAUCE_DEMO config
+
 ## Coding Standards Being Followed
 - Type hints on all functions and classes
 - Page Object Model (POM) with inheritance
 - SOLID principles and clean code
-- Descriptive logging (adding Day 5)
+- Structured logging via utils/logger.py (DEBUG/INFO levels, %s lazy formatting)
+- Centralized config via frozen dataclasses in utils/config.py
 - decimal library for financial calculations (when needed)
 
 ## Day-by-Day Roadmap
@@ -91,7 +103,7 @@ QA_Level_Up/
 - Day 2: Global Authentication ✅
 - Day 3: Custom Pytest Fixtures ✅
 - Day 4: Network Interception & Mocking ✅
-- Day 5: Logging + Config + Polish (structured logging, centralized config, type hints audit)
+- Day 5: Logging + Config + Polish ✅
 
 ### Week 2: API Testing
 - Day 6: API Test Foundation (Pytest-based API client, request/response models)
@@ -114,7 +126,7 @@ QA_Level_Up/
 - Day 15: README, Reporting & Final Polish
 
 ## What To Do Next
-Start Day 5: Logging + Config + Polish. Give me step-by-step instructions to:
-1. Add structured logging with Python's logging module (utils/logger.py)
-2. Create centralized config (utils/config.py) for URLs, credentials, timeouts
-3. Audit type hints across all files and refactor any inconsistencies
+Week 1 complete! Start Day 6: API Test Foundation. Give me step-by-step instructions to:
+1. Build a Pytest-based API client for testing REST APIs
+2. Create request/response models with type hints
+3. Write API tests with proper assertions and data validation

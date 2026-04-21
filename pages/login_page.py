@@ -1,12 +1,12 @@
 from pages.base_page import BasePage
+from utils.config import SAUCE_DEMO
 
 
 class LoginPage(BasePage):
     """Page Object for the SauceDemo login page."""
 
-    URL = "https://www.saucedemo.com"
+    URL = SAUCE_DEMO.base_url
 
-    # Locators
     USERNAME_INPUT = "#user-name"
     PASSWORD_INPUT = "#password"
     LOGIN_BUTTON = "#login-button"
@@ -16,6 +16,7 @@ class LoginPage(BasePage):
         self.navigate(self.URL)
 
     def login(self, username: str, password: str) -> None:
+        self.logger.info("Logging in as '%s'", username)
         self.fill(self.USERNAME_INPUT, username)
         self.fill(self.PASSWORD_INPUT, password)
         self.click(self.LOGIN_BUTTON)

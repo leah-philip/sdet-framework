@@ -56,12 +56,21 @@ pytest --headed
 pytest -v
 ```
 
+## Tracking Progress
+
+This repo is built day-by-day as a learning exercise. Two files are maintained alongside the code:
+
+- **`PROMPT.md`** — session context for AI-assisted learning. Updated after each day with what was built, current project structure, and what's next. Paste into a new chat to resume without losing context.
+- **`LEARNING_NOTES.md`** — interview-ready reference of concepts and patterns learned. Updated after each day with explanations and interview answers for every topic covered.
+
+**After completing each day:** update both files before ending your session.
+
 ## Roadmap
 
 - [x] Project scaffold + Base POM
 - [x] Global authentication with storage state
-- [ ] Custom Pytest fixtures (auto-inject Page Objects)
-- [ ] Network interception & API mocking
+- [x] Custom Pytest fixtures (auto-inject Page Objects)
+- [x] Network interception & API mocking
 - [ ] Structured logging & centralized config
 - [ ] API testing framework
 - [ ] Performance testing with K6
