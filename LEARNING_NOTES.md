@@ -727,4 +727,187 @@ Centralized config:
 
 ---
 
-*Week 1 complete. More sections will be added as new days are completed.*
+## Day 6: API Test Foundation
+
+### REST API & HTTP Methods
+REST (Representational State Transfer) uses HTTP methods to perform actions on
+resources (represented by URLs):
+
+| Method | Action | Example |
+|--------|--------|---------|
+| **POST** | Create | `POST /booking` — create a new booking |
+| **GET** | Read | `GET /booking/15` — retrieve booking #15 |
+| **PUT** | Replace | `PUT /booking/15` — replace entire booking #15 |
+| **PATCH** | Partial update | `PATCH /booking/15` — update one field |
+| **DELETE** | Remove | `DELETE /booking/15` — delete booking #15 |
+
+This maps to **CRUD** — Create, Read, Update, Delete.
+
+**Interview answer:**
+> "I structure API tests around CRUD operations. Each test targets a specific
+> HTTP method and validates status codes, response bodies, and data contracts.
+> I use PUT for full replacement and PATCH for partial updates — knowing the
+> difference matters for correct test design."
+
+### What is `requests.Session` and why use it?
+`requests.Session` maintains state across multiple HTTP requests:
+
+1. **Persistent headers** — set `Content-Type` and `Accept` once, sent with every
+   request automatically.
+2. **Persistent cookies** — after authentication, the token cookie is sent with
+   every subsequent request. Individual methods don't need to know about auth.
+3. **TCP connection pooling** — reuses the underlying network connection instead
+   of opening a new one per request (skips the 3-step TCP handshake).
+
+Without a session, every API call repeats headers, cookies, and connection setup.
+
+```python
+self.session: requests.Session = requests.Session()
+self.session.headers.update(dict(BOOKER_API.default_headers))
+```
+
+**Interview answer:**
+> "I use requests.Session as the foundation for my API client. It persists
+> headers and authentication cookies across requests, reuses TCP connections
+> for performance, and centralizes HTTP configuration. This mirrors how a
+> real client maintains a session with a server."
+
+### What is `raise_for_status()` and why always use it?
+`response.raise_for_status()` throws an `HTTPError` if the status code is
+4xx (client error) or 5xx (server error). Without it, a 500 response silently
+passes — your code moves on to parse the response body, which is either garbage
+or an error message, and your test may assert on wrong data.
+
+```python
+response = self.session.post(url, json=data)
+response.raise_for_status()   # fails immediately on 4xx/5xx
+return response.json()        # only reached if status was 2xx
+```
+
+**Rule:** Call `raise_for_status()` right after the request, before parsing.
+
+**Interview answer:**
+> "I call raise_for_status() after every API request as a fail-fast guard.
+> If the server returns an error, the test fails immediately with a clear
+> HTTP error — not a confusing JSON parse error downstream."
+
+### `json=` parameter vs `data=` in requests
+Two ways to send data:
+
+| Parameter | What it does | Content-Type |
+|-----------|-------------|-------------|
+| `json=` | Takes a dict, auto-serializes to JSON string, sets Content-Type | `application/json` |
+| `data=` | Takes raw string/bytes, sends as-is, you handle serialization | `application/x-www-form-urlencoded` |
+
+Always use `json=` for JSON APIs — it handles serialization and headers in one step.
+
+### Typed models vs raw dicts for test data
+Raw dicts have no safety — typos in key names and wrong value types pass silently
+until runtime. Typed dataclass models catch these at write-time via IDE warnings.
+
+```python
+# Raw dict — typo in "lastnme" goes unnoticed until API returns 400
+payload = {"firstname": "James", "lastnme": "Brown", "totalprice": "150"}
+
+# Typed model — IDE immediately flags unknown field and wrong type
+payload = BookingPayload(firstname="James", lastnme="Brown", totalprice="150")
+```
+
+Models also provide autocomplete — type `payload.` and the IDE shows all fields.
+
+**Interview answer:**
+> "I use typed dataclass models for API payloads instead of raw dicts. They
+> provide IDE autocomplete, catch field name typos and type mismatches before
+> runtime, and serve as living documentation of the API's data contract."
+
+### `asdict()` for recursive dataclass conversion
+`dataclasses.asdict()` converts a dataclass to a plain dict **recursively** —
+nested dataclasses are also converted. `__dict__` only converts the top level,
+leaving nested dataclasses as objects that `json.dumps` can't serialize.
+
+```python
+# BookingPayload has a nested BookingDates dataclass
+asdict(payload)
+# → {"firstname": "James", ..., "bookingdates": {"checkin": "2026-06-01", ...}}
+
+payload.__dict__
+# → {"firstname": "James", ..., "bookingdates": BookingDates(checkin="2026-06-01", ...)}
+# ← BookingDates is still an object — requests can't serialize this to JSON
+```
+
+### Tuple-of-tuples for immutable defaults in frozen dataclasses
+Frozen dataclasses require all default values to be immutable. Dicts are mutable,
+so they raise `TypeError` as defaults. Use tuple-of-tuples instead:
+
+```python
+@dataclass(frozen=True)
+class BookerApiConfig:
+    default_headers: tuple[tuple[str, str], ...] = (
+        ("Content-Type", "application/json"),
+        ("Accept", "application/json"),
+    )
+```
+
+Convert to dict when needed: `dict(BOOKER_API.default_headers)`.
+
+### API client pattern — same principle as POM
+The API client class (`BookerClient`) follows the same pattern as Page Object
+Model for UI tests:
+
+| | UI Testing (POM) | API Testing (Client) |
+|---|---|---|
+| **Abstraction** | Page class wraps browser actions | Client class wraps HTTP calls |
+| **Tests call** | `login_page.login(user, pass)` | `client.create_booking(payload)` |
+| **Tests don't touch** | Raw selectors, Playwright API | Raw URLs, headers, requests |
+| **Change URL/selector** | Update one page class | Update one client method |
+
+**Interview answer:**
+> "I apply the same abstraction pattern to API testing that I use for UI.
+> The API client encapsulates endpoints, headers, auth, and error handling.
+> Tests call clean methods like create_booking() — they don't construct URLs
+> or manage sessions. If an endpoint changes, I update one method in the
+> client, not every test."
+
+### Session-scoped API fixtures
+The `booker_client` fixture is session-scoped — authenticates once and reuses
+the token for all tests. Same pattern as browser authentication from Day 2.
+
+`sample_booking` is function-scoped — each test gets its own fresh payload.
+
+```python
+@pytest.fixture(scope="session")
+def booker_client() -> BookerClient:
+    client = BookerClient()
+    client.authenticate()     # once for entire test run
+    return client
+
+@pytest.fixture()
+def sample_booking() -> BookingPayload:
+    return BookingPayload(...)  # fresh copy per test
+```
+
+**Why this split:**
+- **Client = infrastructure** — stateless auth, safe to share across all tests
+- **Test data = per-test** — isolated so one test can't affect another
+
+### Security: credentials in config vs environment variables
+For practice APIs with public credentials (SauceDemo, Restful Booker), inline
+config is fine. For real projects, credentials should never be in source code.
+
+**Production approach:**
+```python
+username: str = field(default_factory=lambda: os.environ["BOOKER_USERNAME"])
+```
+
+Credentials live in `.env` files (gitignored locally) or CI/CD secret stores
+(GitHub Actions secrets, HashiCorp Vault).
+
+**Interview answer:**
+> "In production frameworks, I never hardcode credentials. I use environment
+> variables loaded at runtime — locally via .env files (gitignored), and in
+> CI/CD via the pipeline's secrets manager. The config dataclass uses
+> field(default_factory=...) to pull from os.environ."
+
+---
+
+*Day 6 complete. More sections will be added as new days are completed.*

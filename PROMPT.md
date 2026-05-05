@@ -14,12 +14,18 @@ Building it day-by-day as a learning exercise — I write the code myself from i
 ## Current Project Structure
 ```
 QA_Level_Up/
-├── conftest.py              # Global fixtures + imports page_fixtures via wildcard import
+├── conftest.py              # Global fixtures + imports page_fixtures & api_fixtures via wildcard
 ├── pytest.ini               # testpaths=tests, -v --tb=short
-├── requirements.txt         # pytest>=8.0, pytest-playwright>=0.5.0
+├── requirements.txt         # pytest>=8.0, pytest-playwright>=0.5.0, requests>=2.31
 ├── .gitignore               # venv/, __pycache__/, *.pyc, data/storage_state.json
 ├── PROMPT.md                # This file — session context
 ├── LEARNING_NOTES.md        # Interview-ready concept notes
+├── api/
+│   ├── __init__.py
+│   └── booker_client.py     # BookerClient: REST API client using requests.Session
+├── models/
+│   ├── __init__.py
+│   └── booking.py           # Typed request/response models: BookingPayload, BookingDates, BookingResponse
 ├── pages/
 │   ├── __init__.py
 │   ├── base_page.py         # BasePage: common actions + logging (navigate, click, fill, get_text)
@@ -30,14 +36,16 @@ QA_Level_Up/
 │   ├── __init__.py
 │   ├── test_login.py        # 3 login tests + local page fixture override (unauthenticated)
 │   ├── test_inventory.py    # 5 inventory tests using auto-injected inventory_page fixture
-│   └── test_cars_network.py # 6 network interception tests (mock, spy, error handling)
+│   ├── test_cars_network.py # 6 network interception tests (mock, spy, error handling)
+│   └── test_booking_api.py  # 6 API tests: full CRUD cycle + response structure validation
 ├── fixtures/
 │   ├── __init__.py
-│   └── page_fixtures.py     # Custom fixtures: login_page, inventory_page, car_page
+│   ├── page_fixtures.py     # Custom fixtures: login_page, inventory_page, car_page
+│   └── api_fixtures.py      # API fixtures: booker_client (session), sample_booking (function)
 ├── utils/
 │   ├── __init__.py
 │   ├── logger.py            # get_logger() — structured logging with singleton pattern
-│   └── config.py            # Frozen dataclass configs: SAUCE_DEMO, CARS, TIMEOUTS
+│   └── config.py            # Frozen dataclass configs: SAUCE_DEMO, CARS, TIMEOUTS, BOOKER_API
 └── data/
     └── storage_state.json   # Auto-generated: saved browser cookies/localStorage after login
 ```
@@ -88,12 +96,31 @@ QA_Level_Up/
 - Fixed fixture consistency: all page fixtures use return (no teardown needed)
 - Wired conftest.py credentials to SAUCE_DEMO config
 
+### Day 6 — API Test Foundation ✅
+- Added `requests>=2.31` to requirements.txt
+- Created `BookerApiConfig` frozen dataclass in utils/config.py (base_url, endpoints, credentials, headers)
+- Created models/booking.py with typed dataclass models: BookingDates, BookingPayload, BookingResponse
+- BookingPayload.to_dict() uses dataclasses.asdict() for recursive nested conversion
+- Created api/booker_client.py — REST API client using requests.Session
+  - Session persists headers, cookies (auth token), and TCP connections
+  - authenticate() stores token via session.cookies.set()
+  - Full CRUD: create_booking, get_booking, get_all_booking_ids, update_booking, delete_booking
+  - All methods use raise_for_status() for fail-fast error handling
+  - Structured logging on all API operations
+- Created fixtures/api_fixtures.py with booker_client (session-scoped) and sample_booking (function-scoped)
+- Registered api_fixtures in conftest.py via wildcard import
+- Wrote 6 API tests in test_booking_api.py:
+  - Create booking, get booking, get all IDs, update booking, delete booking, response structure validation
+- Used tuple-of-tuples for immutable headers in frozen dataclass config
+
 ## Coding Standards Being Followed
 - Type hints on all functions and classes
 - Page Object Model (POM) with inheritance
 - SOLID principles and clean code
 - Structured logging via utils/logger.py (DEBUG/INFO levels, %s lazy formatting)
 - Centralized config via frozen dataclasses in utils/config.py
+- Typed request/response models via frozen dataclasses in models/
+- API client pattern with requests.Session (connection pooling, persistent auth)
 - decimal library for financial calculations (when needed)
 
 ## Day-by-Day Roadmap
@@ -106,7 +133,7 @@ QA_Level_Up/
 - Day 5: Logging + Config + Polish ✅
 
 ### Week 2: API Testing
-- Day 6: API Test Foundation (Pytest-based API client, request/response models)
+- Day 6: API Test Foundation ✅
 - Day 7: API Schema Validation & Data-Driven Tests
 
 ### Week 3: Performance Testing
@@ -126,7 +153,7 @@ QA_Level_Up/
 - Day 15: README, Reporting & Final Polish
 
 ## What To Do Next
-Week 1 complete! Start Day 6: API Test Foundation. Give me step-by-step instructions to:
-1. Build a Pytest-based API client for testing REST APIs
-2. Create request/response models with type hints
-3. Write API tests with proper assertions and data validation
+Day 6 complete! Start Day 7: API Schema Validation & Data-Driven Tests. Give me step-by-step instructions to:
+1. Add JSON schema validation for API responses
+2. Build data-driven/parameterized API tests
+3. Add negative test cases (invalid payloads, missing fields, auth failures)

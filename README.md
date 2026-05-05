@@ -7,18 +7,24 @@ A professional-grade test automation framework built with **Python**, **Playwrig
 - **Python 3.10+**
 - **Playwright** — browser automation
 - **Pytest** — test framework with fixtures and plugins
+- **Requests** — HTTP client for API testing
 
 ## Project Structure
 
 ```
 ├── conftest.py           # Global fixtures: auth, browser lifecycle
+├── api/
+│   └── booker_client.py  # REST API client (requests.Session)
+├── models/
+│   └── booking.py        # Typed request/response dataclass models
 ├── pages/
 │   ├── base_page.py      # BasePage with common browser actions
 │   └── login_page.py     # LoginPage for SauceDemo
 ├── tests/
 │   ├── test_login.py     # Login flow tests (unauthenticated)
-│   └── test_inventory.py # Inventory tests (pre-authenticated)
-├── fixtures/             # Custom fixture modules (Day 3+)
+│   ├── test_inventory.py # Inventory tests (pre-authenticated)
+│   └── test_booking_api.py # API CRUD tests (Restful Booker)
+├── fixtures/             # Custom fixture modules (page + API)
 ├── utils/                # Shared utilities (logging, config)
 └── data/                 # Test data and generated state files
 ```
@@ -33,6 +39,9 @@ Login runs **once per session**. Browser cookies and localStorage are saved to `
 
 ### Fixture Override by Proximity
 The global `page` fixture provides authenticated sessions. Tests that need clean pages (e.g., login tests) override the fixture locally — no code changes needed in the tests themselves.
+
+### API Client Pattern
+API tests use a dedicated client class (`BookerClient`) built on `requests.Session` — persistent auth, headers, and connection pooling. Typed dataclass models define request/response contracts. Same abstraction principle as POM for UI tests.
 
 ## Setup
 
@@ -71,8 +80,9 @@ This repo is built day-by-day as a learning exercise. Two files are maintained a
 - [x] Global authentication with storage state
 - [x] Custom Pytest fixtures (auto-inject Page Objects)
 - [x] Network interception & API mocking
-- [ ] Structured logging & centralized config
-- [ ] API testing framework
+- [x] Structured logging & centralized config
+- [x] API testing framework
+- [ ] API schema validation & data-driven tests
 - [ ] Performance testing with K6
 - [ ] Mobile emulation
 - [ ] AI/LLM testing with DeepEval

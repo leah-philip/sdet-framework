@@ -21,7 +21,19 @@ class TimeoutConfig:
     long: int = 15000
     short: int = 2000
 
-
+@dataclass(frozen=True)
+class BookerApiConfig:
+    base_url: str = "https://restful-booker.herokuapp.com"
+    auth_endpoint: str = "/auth"
+    booking_endpoint: str = "/booking"
+    username: str = "admin"
+    password: str = "password123"
+    default_headers: tuple[tuple[str, str], ...] = (
+        ("Content-Type", "application/json"),
+        ("Accept", "application/json"),
+    )
+    
+BOOKER_API = BookerApiConfig()
 SAUCE_DEMO = SauceDemoConfig()
 CARS = CarsConfig()
 TIMEOUTS = TimeoutConfig()
