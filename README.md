@@ -8,25 +8,31 @@ A professional-grade test automation framework built with **Python**, **Playwrig
 - **Playwright** — browser automation
 - **Pytest** — test framework with fixtures and plugins
 - **Requests** — HTTP client for API testing
+- **jsonschema** — API contract validation
 
 ## Project Structure
 
 ```
-├── conftest.py           # Global fixtures: auth, browser lifecycle
+├── conftest.py              # Global fixtures: auth, browser lifecycle
 ├── api/
-│   └── booker_client.py  # REST API client (requests.Session)
+│   └── booker_client.py     # REST API client (requests.Session)
 ├── models/
-│   └── booking.py        # Typed request/response dataclass models
+│   └── booking.py           # Typed request/response dataclass models
+├── schemas/
+│   └── booking_schema.py    # JSON schemas for API contract validation
 ├── pages/
-│   ├── base_page.py      # BasePage with common browser actions
-│   └── login_page.py     # LoginPage for SauceDemo
+│   ├── base_page.py         # BasePage with common browser actions
+│   └── login_page.py        # LoginPage for SauceDemo
 ├── tests/
-│   ├── test_login.py     # Login flow tests (unauthenticated)
-│   ├── test_inventory.py # Inventory tests (pre-authenticated)
-│   └── test_booking_api.py # API CRUD tests (Restful Booker)
-├── fixtures/             # Custom fixture modules (page + API)
-├── utils/                # Shared utilities (logging, config)
-└── data/                 # Test data and generated state files
+│   ├── test_login.py        # Login flow tests (unauthenticated)
+│   ├── test_inventory.py    # Inventory tests (pre-authenticated)
+│   ├── test_booking_api.py  # API CRUD tests (Restful Booker)
+│   ├── test_booking_schema.py     # Schema validation tests
+│   ├── test_booking_parametrize.py # Data-driven parameterized tests
+│   └── test_booking_negative.py   # Negative & auth bypass tests
+├── fixtures/                # Custom fixture modules (page + API)
+├── utils/                   # Shared utilities (logging, config)
+└── data/                    # Test data and generated state files
 ```
 
 ## Key Patterns Implemented
@@ -42,6 +48,12 @@ The global `page` fixture provides authenticated sessions. Tests that need clean
 
 ### API Client Pattern
 API tests use a dedicated client class (`BookerClient`) built on `requests.Session` — persistent auth, headers, and connection pooling. Typed dataclass models define request/response contracts. Same abstraction principle as POM for UI tests.
+
+### JSON Schema Contract Testing
+API responses are validated against strict JSON schemas with `additionalProperties: false`. Catches field additions, removals, and type changes in the API contract — an early warning system for breaking changes.
+
+### Data-Driven & Negative Testing
+Parameterized tests cover edge cases (zero price, special characters, empty strings) without duplicating test logic. Negative tests verify error handling, 404 responses, and auth enforcement using `pytest.raises`.
 
 ## Setup
 
@@ -82,8 +94,21 @@ This repo is built day-by-day as a learning exercise. Two files are maintained a
 - [x] Network interception & API mocking
 - [x] Structured logging & centralized config
 - [x] API testing framework
-- [ ] API schema validation & data-driven tests
+- [x] API schema validation & data-driven tests
 - [ ] Performance testing with K6
 - [ ] Mobile emulation
 - [ ] AI/LLM testing with DeepEval
 - [ ] CI/CD with GitHub Actions
+
+## Test Coverage Summary
+
+| Area | File | Tests | What's Covered |
+|------|------|-------|----------------|
+| UI — Login | `test_login.py` | 3 | Successful, locked out, invalid credentials |
+| UI — Inventory | `test_inventory.py` | 5 | Items, sorting, add/remove cart |
+| UI — Network | `test_cars_network.py` | 6 | Mocking, spying, error simulation |
+| API — CRUD | `test_booking_api.py` | 6 | Create, read, update, delete, structure |
+| API — Schema | `test_booking_schema.py` | 3 | Contract validation (create, get, list) |
+| API — Data-Driven | `test_booking_parametrize.py` | 8 | Edge cases, boundary values, dates |
+| API — Negative | `test_booking_negative.py` | 5 | 404, auth bypass, error handling |
+| **Total** | | **36** | |

@@ -16,16 +16,19 @@ Building it day-by-day as a learning exercise — I write the code myself from i
 QA_Level_Up/
 ├── conftest.py              # Global fixtures + imports page_fixtures & api_fixtures via wildcard
 ├── pytest.ini               # testpaths=tests, -v --tb=short
-├── requirements.txt         # pytest>=8.0, pytest-playwright>=0.5.0, requests>=2.31
+├── requirements.txt         # pytest>=8.0, pytest-playwright>=0.5.0, requests>=2.31, jsonschema>=4.20
 ├── .gitignore               # venv/, __pycache__/, *.pyc, data/storage_state.json
 ├── PROMPT.md                # This file — session context
 ├── LEARNING_NOTES.md        # Interview-ready concept notes
 ├── api/
 │   ├── __init__.py
-│   └── booker_client.py     # BookerClient: REST API client using requests.Session
+│   └── booker_client.py     # BookerClient: REST API client using requests.Session (+ create_booking_raw)
 ├── models/
 │   ├── __init__.py
 │   └── booking.py           # Typed request/response models: BookingPayload, BookingDates, BookingResponse
+├── schemas/
+│   ├── __init__.py
+│   └── booking_schema.py    # JSON schemas: CREATE_BOOKING, GET_BOOKING, BOOKING_IDS
 ├── pages/
 │   ├── __init__.py
 │   ├── base_page.py         # BasePage: common actions + logging (navigate, click, fill, get_text)
@@ -37,7 +40,10 @@ QA_Level_Up/
 │   ├── test_login.py        # 3 login tests + local page fixture override (unauthenticated)
 │   ├── test_inventory.py    # 5 inventory tests using auto-injected inventory_page fixture
 │   ├── test_cars_network.py # 6 network interception tests (mock, spy, error handling)
-│   └── test_booking_api.py  # 6 API tests: full CRUD cycle + response structure validation
+│   ├── test_booking_api.py  # 6 API tests: full CRUD cycle + response structure validation
+│   ├── test_booking_schema.py    # 3 JSON schema validation tests
+│   ├── test_booking_parametrize.py # 8 data-driven parameterized tests
+│   └── test_booking_negative.py  # 5 negative tests: 404, auth bypass, error handling
 ├── fixtures/
 │   ├── __init__.py
 │   ├── page_fixtures.py     # Custom fixtures: login_page, inventory_page, car_page
@@ -113,6 +119,23 @@ QA_Level_Up/
   - Create booking, get booking, get all IDs, update booking, delete booking, response structure validation
 - Used tuple-of-tuples for immutable headers in frozen dataclass config
 
+### Day 7 — API Schema Validation & Data-Driven Tests ✅
+- Added `jsonschema>=4.20` to requirements.txt
+- Created schemas/booking_schema.py with 3 JSON schemas: CREATE_BOOKING_SCHEMA, GET_BOOKING_SCHEMA, BOOKING_IDS_SCHEMA
+- All schemas use `additionalProperties: false` for strict contract validation
+- Added `create_booking_raw()` method to BookerClient for raw dict responses
+- Wrote 3 schema validation tests in test_booking_schema.py:
+  - Create booking schema, get booking schema, get all booking IDs schema
+- Wrote 8 parameterized data-driven tests in test_booking_parametrize.py:
+  - 5 data variations (standard, zero price, high price, special chars, empty strings)
+  - 3 date variations (new year, christmas, one-night stay)
+  - Used pytest.mark.parametrize with human-readable `ids=`
+- Wrote 5 negative tests in test_booking_negative.py:
+  - GET nonexistent booking (404), DELETE nonexistent, UPDATE nonexistent
+  - Unauthenticated update fails, unauthenticated delete fails
+  - Used pytest.raises with exc_info for status code inspection
+  - Unauthenticated tests create separate BookerClient() without calling authenticate()
+
 ## Coding Standards Being Followed
 - Type hints on all functions and classes
 - Page Object Model (POM) with inheritance
@@ -121,6 +144,9 @@ QA_Level_Up/
 - Centralized config via frozen dataclasses in utils/config.py
 - Typed request/response models via frozen dataclasses in models/
 - API client pattern with requests.Session (connection pooling, persistent auth)
+- JSON schema validation for API contract testing (additionalProperties: false)
+- Data-driven tests via pytest.mark.parametrize with ids
+- Negative testing with pytest.raises for error path coverage
 - decimal library for financial calculations (when needed)
 
 ## Day-by-Day Roadmap
@@ -134,7 +160,7 @@ QA_Level_Up/
 
 ### Week 2: API Testing
 - Day 6: API Test Foundation ✅
-- Day 7: API Schema Validation & Data-Driven Tests
+- Day 7: API Schema Validation & Data-Driven Tests ✅
 
 ### Week 3: Performance Testing
 - Day 8: K6 Setup + First Script
@@ -153,7 +179,7 @@ QA_Level_Up/
 - Day 15: README, Reporting & Final Polish
 
 ## What To Do Next
-Day 6 complete! Start Day 7: API Schema Validation & Data-Driven Tests. Give me step-by-step instructions to:
-1. Add JSON schema validation for API responses
-2. Build data-driven/parameterized API tests
-3. Add negative test cases (invalid payloads, missing fields, auth failures)
+Week 2 complete! Start Day 8: K6 Setup + First Script. Give me step-by-step instructions to:
+1. Install K6 and set up performance testing scripts
+2. Write first load test against the Restful Booker API
+3. Define performance metrics and acceptance thresholds

@@ -37,6 +37,17 @@ class BookerClient:
         self.logger.info("Booking created with ID: %s", data["bookingid"])
         return BookingResponse(bookingid=data["bookingid"], booking=data["booking"])
 
+    def create_booking_raw(self, payload: BookingPayload) -> dict:
+        self.logger.info(
+            "Creating booking (raw) for %s %s", payload.firstname, payload.lastname
+        )
+        response = self.session.post(
+            f"{self.base_url}{BOOKER_API.booking_endpoint}",
+            json=payload.to_dict(),
+        )
+        response.raise_for_status()
+        return response.json()
+
     def get_booking(self, booking_id: int) -> dict:
         self.logger.info("Getting booking %s", booking_id)
         response = self.session.get(

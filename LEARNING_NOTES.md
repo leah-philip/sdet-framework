@@ -910,4 +910,202 @@ Credentials live in `.env` files (gitignored locally) or CI/CD secret stores
 
 ---
 
-*Day 6 complete. More sections will be added as new days are completed.*
+## Day 7: API Schema Validation & Data-Driven Tests
+
+### What is JSON Schema and why use it for API testing?
+JSON Schema is a standard vocabulary for defining the expected structure of
+JSON data — field names, types, required fields, nesting, and allowed values.
+Instead of manually asserting `"firstname" in response`, you define the entire
+contract once and validate against it.
+
+```python
+from jsonschema import validate
+
+schema = {
+    "type": "object",
+    "required": ["bookingid", "booking"],
+    "properties": {
+        "bookingid": {"type": "integer"},
+        "booking": {"type": "object", ...},
+    },
+    "additionalProperties": False,
+}
+
+validate(instance=api_response, schema=schema)
+```
+
+If validation passes — nothing happens (test passes silently).
+If validation fails — `jsonschema.ValidationError` is raised with a detailed
+message like `"'firstname' is a required property"`. No `assert` needed.
+
+**Interview answer:**
+> "I use JSON Schema for API contract testing. It validates the entire response
+> structure in one call — required fields, types, nesting — instead of manual
+> assertions per field. With additionalProperties: false, I catch API drift
+> where new fields are silently added. Schema tests complement value assertions
+> to provide full API coverage."
+
+### Schema validation vs value assertion — why both?
+They catch different categories of bugs:
+
+| | Schema Validation | Value Assertion |
+|---|---|---|
+| **Checks** | Structure (fields, types, nesting) | Content (actual values) |
+| **Catches** | Missing fields, wrong types, extra fields | Wrong data, bad calculations |
+| **Example pass** | `{"firstname": "WRONG"}` (string ✓) | Fails — expected "James" |
+| **Example fail** | `{"first_name": "James"}` (wrong key) | Never reached |
+
+A response can have the right structure but wrong values, or right values in
+the wrong structure. You need both layers.
+
+### What is `additionalProperties: false`?
+Rejects any fields not explicitly listed in `"properties"`. Without it, the
+schema ignores unexpected fields.
+
+**Without it:** `{"firstname": "James", "ssn": "123-45-6789"}` passes silently.
+**With it:** Fails with `Additional properties are not allowed ('ssn' was unexpected)`.
+
+**What it catches:**
+- API returning internal/debug fields (security risk)
+- API contract changes nobody told you about
+- Different API versions returning different shapes
+
+**Tradeoff:** You must update the schema when the API intentionally adds fields.
+This is a feature — it forces explicit review of every contract change.
+
+**Interview answer:**
+> "I use additionalProperties: false in schemas to enforce strict API contracts.
+> If the backend adds a field without updating the contract, my tests catch it
+> immediately. This prevents silent drift and catches accidental exposure of
+> internal data."
+
+### What is `pytest.mark.parametrize`?
+Runs the same test function multiple times with different data sets. Each set
+becomes a separate test case — if one fails, others still run.
+
+```python
+@pytest.mark.parametrize(
+    "firstname, lastname, totalprice",
+    [
+        ("Alice", "Smith", 100),
+        ("Bob", "Jones", 0),
+        ("Charlie", "Lee", 999999),
+    ],
+    ids=["standard", "zero_price", "high_price"],
+)
+def test_create(self, booker_client, firstname, lastname, totalprice):
+    ...
+```
+
+**`ids=`** gives human-readable names in output:
+- With ids: `test_create[zero_price]`
+- Without: `test_create[Bob-Jones-0]`
+
+**Why parametrize instead of separate tests?**
+- **DRY** — test logic written once, data varies
+- **Maintainability** — change assertion logic in one place, not 5 copies
+- **Scalability** — add a new test case = add one tuple to the list
+
+**Stacking decorators for combinations:**
+```python
+@pytest.mark.parametrize("browser", ["chrome", "firefox"])
+@pytest.mark.parametrize("env", ["staging", "prod"])
+def test_login(browser, env):  # runs 4 times (2 × 2)
+```
+
+**Interview answer:**
+> "I use pytest.mark.parametrize for data-driven tests. The test logic is
+> written once and executed with multiple data sets — edge cases, boundary
+> values, special characters. Each parameterized case runs independently, so
+> one failure doesn't block others. I use ids for readable test output."
+
+### What is `pytest.raises` and how to inspect exceptions?
+A context manager that asserts code raises a specific exception. If the code
+*doesn't* raise, the test *fails*.
+
+```python
+# Basic — just verify the error happens
+with pytest.raises(requests.HTTPError):
+    client.get_booking(999999999)
+
+# Advanced — capture and inspect error details
+with pytest.raises(requests.HTTPError) as exc_info:
+    client.get_booking(999999999)
+
+assert exc_info.value.response.status_code == 404
+```
+
+**The chain explained:**
+- `exc_info` — Pytest's ExceptionInfo wrapper
+- `.value` — the actual exception object
+- `.response` — the HTTP response (attached by requests library)
+- `.status_code` — the numeric status code (404, 500, etc.)
+
+**Why inspect the status code?** Without it, any HTTP error passes —
+including a 500 (server crash) when you expected a 404 (not found). A 500
+for a nonexistent resource is a server bug, not correct behavior.
+
+**Interview answer:**
+> "I use pytest.raises for negative testing — verifying that errors happen
+> when expected. I capture the exception with `as exc_info` to inspect
+> specific details like HTTP status codes, ensuring the API returns the
+> correct error type, not just any error."
+
+### What is negative testing and why does it matter?
+Testing that the system correctly handles invalid inputs, unauthorized access,
+and error conditions. Day 6 tests were all "happy path" — valid data,
+authenticated user, existing resources. Negative tests prove the guardrails work.
+
+**What negative tests catch:**
+- **Missing error handling** — API returns 200 for nonexistent resource
+- **Auth bypass** — unauthenticated users can delete records (security bug)
+- **Silent failures** — API accepts garbage data without validation
+- **Wrong error codes** — 500 (server bug) instead of 400 (bad input)
+
+**Interview answer:**
+> "I include negative tests for every API — nonexistent resources,
+> unauthenticated access, invalid payloads. These catch security
+> vulnerabilities like auth bypass and incorrect error codes. Most
+> production bugs come from unhandled edge cases, not the happy path."
+
+### Unauthenticated client pattern for access control testing
+To test that the API enforces authentication, create a separate client that
+*doesn't* call `authenticate()`:
+
+```python
+def test_unauthenticated_delete_fails(self) -> None:
+    unauth_client = BookerClient()          # no authenticate()
+    created = unauth_client.create_booking(payload)  # create works without auth
+    with pytest.raises(requests.HTTPError):
+        unauth_client.delete_booking(created.bookingid)  # delete requires auth
+```
+
+The test doesn't use the `booker_client` fixture (which is authenticated).
+It creates its own client, proving that the API rejects the operation without
+a token. Pytest only injects fixtures that appear in the function signature —
+if `booker_client` isn't a parameter, the fixture is never involved.
+
+Same principle as UI login tests overriding the authenticated `page` fixture
+to get clean, unauthenticated browser pages.
+
+**Interview answer:**
+> "I test access control by creating unauthenticated client instances
+> separate from the shared authenticated fixture. This verifies that
+> protected operations properly reject requests without tokens. I've
+> caught real bugs this way — APIs where GET was protected but DELETE
+> wasn't, due to misconfigured auth middleware."
+
+### `create_booking_raw()` — why a separate method?
+The existing `create_booking()` returns a typed `BookingResponse` dataclass.
+Schema validation needs the raw dict (as returned by the API) to validate
+against the JSON schema.
+
+Adding a separate `create_booking_raw()` method follows **Single Responsibility**:
+- `create_booking()` → typed object for value assertions
+- `create_booking_raw()` → raw dict for schema validation
+
+Existing Day 6 tests don't break. New schema tests use the new method.
+
+---
+
+*Week 2 complete. More sections will be added as new days are completed.*
