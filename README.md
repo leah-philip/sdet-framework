@@ -9,6 +9,7 @@ A professional-grade test automation framework built with **Python**, **Playwrig
 - **Pytest** — test framework with fixtures and plugins
 - **Requests** — HTTP client for API testing
 - **jsonschema** — API contract validation
+- **K6** — performance/load testing
 
 ## Project Structure
 
@@ -32,6 +33,9 @@ A professional-grade test automation framework built with **Python**, **Playwrig
 │   └── test_booking_negative.py   # Negative & auth bypass tests
 ├── fixtures/                # Custom fixture modules (page + API)
 ├── utils/                   # Shared utilities (logging, config)
+├── performance/
+│   └── scripts/
+│       └── booking_load_test.js  # K6 load test with stages & thresholds
 └── data/                    # Test data and generated state files
 ```
 
@@ -55,6 +59,9 @@ API responses are validated against strict JSON schemas with `additionalProperti
 ### Data-Driven & Negative Testing
 Parameterized tests cover edge cases (zero price, special characters, empty strings) without duplicating test logic. Negative tests verify error handling, 404 responses, and auth enforcement using `pytest.raises`.
 
+### K6 Performance Testing
+Load tests simulate concurrent users against the Restful Booker API with ramp-up/hold/ramp-down stages. Thresholds enforce SLAs as code — p95 response time, error rate, and check pass rate. Threshold breaches return non-zero exit codes for CI/CD integration.
+
 ## Setup
 
 ```bash
@@ -75,6 +82,9 @@ pytest --headed
 
 # Verbose output
 pytest -v
+
+# K6 load test
+k6 run performance/scripts/booking_load_test.js
 ```
 
 ## Tracking Progress
@@ -95,7 +105,7 @@ This repo is built day-by-day as a learning exercise. Two files are maintained a
 - [x] Structured logging & centralized config
 - [x] API testing framework
 - [x] API schema validation & data-driven tests
-- [ ] Performance testing with K6
+- [x] Performance testing with K6
 - [ ] Mobile emulation
 - [ ] AI/LLM testing with DeepEval
 - [ ] CI/CD with GitHub Actions
@@ -111,4 +121,5 @@ This repo is built day-by-day as a learning exercise. Two files are maintained a
 | API — Schema | `test_booking_schema.py` | 3 | Contract validation (create, get, list) |
 | API — Data-Driven | `test_booking_parametrize.py` | 8 | Edge cases, boundary values, dates |
 | API — Negative | `test_booking_negative.py` | 5 | 404, auth bypass, error handling |
-| **Total** | | **36** | |
+| Perf — Load | `booking_load_test.js` | K6 | Ramp-up/hold/ramp-down, 5 VUs, 3 thresholds |
+| **Total** | | **36 + K6** | |

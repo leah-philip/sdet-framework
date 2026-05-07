@@ -52,6 +52,9 @@ QA_Level_Up/
 │   ├── __init__.py
 │   ├── logger.py            # get_logger() — structured logging with singleton pattern
 │   └── config.py            # Frozen dataclass configs: SAUCE_DEMO, CARS, TIMEOUTS, BOOKER_API
+├── performance/
+│   └── scripts/
+│       └── booking_load_test.js  # K6 load test: stages, thresholds, checks against Booker API
 └── data/
     └── storage_state.json   # Auto-generated: saved browser cookies/localStorage after login
 ```
@@ -136,6 +139,17 @@ QA_Level_Up/
   - Used pytest.raises with exc_info for status code inspection
   - Unauthenticated tests create separate BookerClient() without calling authenticate()
 
+### Day 8 — K6 Performance Testing Setup ✅
+- Installed K6 via snap (`sudo snap install k6`)
+- Created performance/scripts/booking_load_test.js — first load test script
+- Load profile: ramp-up (0→5 VUs, 10s), hold (5 VUs, 20s), ramp-down (5→0 VUs, 10s)
+- Defined 3 thresholds: p(95)<2000ms response time, <5% error rate, >95% check pass rate
+- setup() authenticates once (session-scoped pattern), token shared with all VUs
+- Default function simulates user flow: create booking → get booking → list all → sleep(1s)
+- 8 checks across auth, create, get, and list operations
+- First run results: 136 requests, 45 iterations, 0% errors, 100% checks passed
+- p(95) = 2.06s (threshold breach on free-tier Heroku — expected for practice API)
+
 ## Coding Standards Being Followed
 - Type hints on all functions and classes
 - Page Object Model (POM) with inheritance
@@ -147,6 +161,7 @@ QA_Level_Up/
 - JSON schema validation for API contract testing (additionalProperties: false)
 - Data-driven tests via pytest.mark.parametrize with ids
 - Negative testing with pytest.raises for error path coverage
+- K6 performance tests with stages, thresholds, and checks
 - decimal library for financial calculations (when needed)
 
 ## Day-by-Day Roadmap
@@ -163,7 +178,7 @@ QA_Level_Up/
 - Day 7: API Schema Validation & Data-Driven Tests ✅
 
 ### Week 3: Performance Testing
-- Day 8: K6 Setup + First Script
+- Day 8: K6 Setup + First Script ✅
 - Day 9: K6 Thresholds + CI Integration
 
 ### Week 4: Mobile Testing
@@ -179,7 +194,7 @@ QA_Level_Up/
 - Day 15: README, Reporting & Final Polish
 
 ## What To Do Next
-Week 2 complete! Start Day 8: K6 Setup + First Script. Give me step-by-step instructions to:
-1. Install K6 and set up performance testing scripts
-2. Write first load test against the Restful Booker API
-3. Define performance metrics and acceptance thresholds
+Day 8 complete! Start Day 9: K6 Thresholds + CI Integration. Give me step-by-step instructions to:
+1. Add stress test and soak test scripts alongside the load test
+2. Export K6 results to JSON for CI/CD reporting
+3. Integrate K6 into a CI pipeline (GitHub Actions or local script)

@@ -1108,4 +1108,172 @@ Existing Day 6 tests don't break. New schema tests use the new method.
 
 ---
 
-*Week 2 complete. More sections will be added as new days are completed.*
+## Day 8: K6 Performance Testing Setup
+
+### What is K6?
+K6 is an open-source load testing tool by Grafana Labs. Scripts are written
+in JavaScript, executed by a Go-based runtime (not Node.js). It's lightweight,
+CLI-first, and designed for CI/CD integration.
+
+**Why K6 over other tools (JMeter, Gatling, Locust)?**
+- Scripts are code (JS), not XML/GUI configs — version-controllable, reviewable
+- Go-based engine = low resource usage, high throughput
+- Built-in thresholds for pass/fail in CI pipelines
+- No JVM dependency (unlike JMeter/Gatling)
+- Industry standard — heavily asked in SDET interviews
+
+### K6 script anatomy
+Every K6 script has four key parts:
+
+```javascript
+// 1. OPTIONS — load profile and thresholds
+export const options = {
+    stages: [...],
+    thresholds: {...},
+};
+
+// 2. SETUP — runs once before all VUs (like session-scoped fixture)
+export function setup() {
+    const token = authenticate();
+    return { token };  // passed to every VU iteration
+}
+
+// 3. DEFAULT FUNCTION — what each VU executes repeatedly
+export default function (data) {
+    // data = what setup() returned
+    http.get(url, params);
+    sleep(1);
+}
+
+// 4. TEARDOWN — runs once after all VUs finish (optional)
+export function teardown(data) { }
+```
+
+### Virtual Users (VUs) vs Requests
+A VU is a simulated user running the default function in a loop. One VU
+generates multiple requests per iteration.
+
+In the booking test:
+- 5 VUs, each running: create → get → list = 3 requests per iteration
+- With sleep(1), each VU does ~1 iteration per ~4 seconds
+- 45 total iterations × 3 requests = ~135 HTTP requests + 1 auth in setup
+
+VUs are concurrent — they run in parallel, not sequentially.
+
+### Stages — ramp-up, hold, ramp-down
+The most common load test pattern:
+
+```javascript
+stages: [
+    { duration: "10s", target: 5 },   // RAMP UP: gradually add users
+    { duration: "20s", target: 5 },   // HOLD: sustain steady load
+    { duration: "10s", target: 0 },   // RAMP DOWN: gradually remove users
+]
+```
+
+- **Ramp up** — finds issues that appear as load increases (connection pooling,
+  resource contention)
+- **Hold** — measures steady-state performance (the main measurement phase)
+- **Ramp down** — verifies the system recovers gracefully (no stuck connections,
+  no resource leaks)
+
+### Thresholds — automated pass/fail gates
+Thresholds define SLAs as code. If violated, K6 exits with non-zero exit code
+— failing the CI pipeline.
+
+```javascript
+thresholds: {
+    http_req_duration: ["p(95)<2000"],  // 95th percentile under 2 seconds
+    http_req_failed: ["rate<0.05"],     // less than 5% error rate
+    checks: ["rate>0.95"],             // more than 95% of checks pass
+}
+```
+
+**Interview answer:**
+> "I define performance thresholds as code in K6 — p95 response time, error
+> rate, and check pass rate. If any threshold is breached, K6 returns a
+> non-zero exit code that fails the CI pipeline. This turns performance
+> requirements into automated gates, not manual observations."
+
+### Checks vs Thresholds — the difference
+| | Checks | Thresholds |
+|---|---|---|
+| **What** | Per-request assertions | Aggregate pass/fail gates |
+| **On failure** | Records failure, keeps running | Fails the entire test |
+| **Purpose** | Verify individual responses | Enforce SLAs across all requests |
+| **Example** | "status is 200" | "p(95) < 2000ms" |
+
+Checks are like soft assertions — they record pass/fail rates without stopping.
+Thresholds are hard gates — they determine if the overall test passed or failed.
+
+### Percentiles — p90, p95, p99
+Average response time is misleading. If 99 requests take 100ms and 1 takes
+10 seconds, the average is 199ms — looks fine, but 1% of users had a terrible
+experience.
+
+| Metric | Meaning | Use case |
+|--------|---------|----------|
+| **p(50)** / median | Half of requests are faster | Typical user experience |
+| **p(90)** | 90% are faster, 10% are slower | Most users' experience |
+| **p(95)** | 95% are faster, 5% are slower | Industry standard SLA metric |
+| **p(99)** | 99% are faster, 1% are slower | Worst-case for almost all users |
+
+**Why p95 is the standard:** It represents the experience of the slowest 5%
+of users — bad enough to cause complaints, but excludes extreme outliers.
+
+**Interview answer:**
+> "I measure performance using p95, not averages. Averages hide slow requests
+> — a p95 of 2 seconds means 5% of users wait over 2 seconds. I set
+> thresholds on p95 because it represents the tail latency that causes real
+> user complaints."
+
+### `setup()` vs `default function` — K6 lifecycle
+| | `setup()` | `default function` |
+|---|---|---|
+| Runs | Once, before all VUs | Per VU, per iteration |
+| Purpose | One-time initialization (auth) | Simulate user actions |
+| Analogy | Pytest session-scoped fixture | Pytest function-scoped fixture |
+
+`setup()` returns data that's passed to every iteration of `default function`.
+The auth token is fetched once and shared — same pattern as your Pytest
+`booker_client` session-scoped fixture.
+
+### Think time — `sleep()` in load tests
+`sleep(1)` adds a 1-second pause between iterations, simulating a real user
+who reads, thinks, and clicks — not a bot firing requests as fast as possible.
+
+Without think time, you're testing machine-gun traffic (stress test / DDoS
+simulation). With think time, you're testing realistic user behavior.
+
+### Load testing vs stress testing vs soak testing
+All use the same K6 scripts — only the load profile changes:
+
+| | Load Test | Stress Test | Soak Test |
+|---|---|---|---|
+| **Traffic** | Normal/expected | Beyond limits | Normal/expected |
+| **Duration** | Minutes | Minutes | Hours |
+| **Question** | "Can it handle normal traffic?" | "Where does it break?" | "Does it hold up over time?" |
+| **Finds** | Slow endpoints, missing indexes | Breaking point, crash recovery | Memory leaks, connection leaks, token expiry |
+| **When** | Every sprint/PR | Before major launches | Weekly/pre-release |
+
+**Interview answer:**
+> "I run three types of performance tests. Load tests verify expected traffic
+> stays within SLAs — this runs in CI. Stress tests push beyond limits to
+> find the breaking point — before major launches. Soak tests run at normal
+> load for hours to catch memory leaks and token expiry — weekly. All three
+> use the same K6 scripts with different stage configurations."
+
+### SLA, SLO, SLI — the performance vocabulary
+| Term | Meaning | Example |
+|------|---------|---------|
+| **SLA** (Service Level Agreement) | External promise to customers | "99.9% uptime" |
+| **SLO** (Service Level Objective) | Internal target (stricter than SLA) | "99.95% uptime" |
+| **SLI** (Service Level Indicator) | Actual measured metric | "Current uptime: 99.97%" |
+
+K6 thresholds codify SLOs. If thresholds pass, you're meeting your objectives.
+If the SLO is stricter than the SLA, you have buffer before breaching the
+customer-facing promise.
+
+---
+
+*Day 8 complete. More sections will be added as new days are completed.*
