@@ -1,3 +1,4 @@
+![CI](https://github.com/leah-philip/QA_Level_Up/actions/workflows/test.yml/badge.svg)
 # QA Level Up — Master SDET Framework
 
 A professional-grade test automation framework built with **Python**, **Playwright**, and **Pytest**, demonstrating advanced SDET patterns and engineering best practices.
