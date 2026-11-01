@@ -29,6 +29,7 @@ def authenticated_state(browser_instance: Browser) -> Path:
     login_page.login(SAUCE_DEMO.username, SAUCE_DEMO.password)
     page.wait_for_url("**/inventory.html")
 
+    STORAGE_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
     context.storage_state(path=str(STORAGE_STATE_PATH))
 
     page.close()
